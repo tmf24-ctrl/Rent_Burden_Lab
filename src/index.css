@@ -1,0 +1,303 @@
+/* Swiss International + Bauhaus Design System */
+
+:root {
+  --bg-primary: #F4F4F2;
+  --text-primary: #000000;
+  --accent-red: #C1121F;
+  --accent-green: #2D6A4F;
+  --white: #FFFFFF;
+  --gray-light: #E8E8E6;
+  --gray-dark: #808080;
+  
+  --spacing-unit: 8px;
+  --max-width: 800px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography */
+h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: calc(var(--spacing-unit) * 6);
+  text-align: left;
+}
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+p {
+  font-size: 1rem;
+  line-height: 1.7;
+  margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+/* Main Container */
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: calc(var(--spacing-unit) * 12) calc(var(--spacing-unit) * 3);
+}
+
+/* Slider Section */
+.slider-section {
+  margin-bottom: calc(var(--spacing-unit) * 10);
+}
+
+.slider-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: calc(var(--spacing-unit) * 2);
+  color: var(--gray-dark);
+}
+
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--spacing-unit) * 2);
+}
+
+input[type="range"] {
+  width: 100%;
+  height: 8px;
+  border-radius: 0;
+  background: var(--gray-light);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  cursor: pointer;
+  box-shadow: none;
+  border: 3px solid var(--bg-primary);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  cursor: pointer;
+  border: 3px solid var(--bg-primary);
+}
+
+.slider-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.slider-value-unit {
+  font-size: 1rem;
+  color: var(--gray-dark);
+  font-weight: 400;
+}
+
+.rent-dropdown {
+  width: 100%;
+  padding: calc(var(--spacing-unit) * 1.5) calc(var(--spacing-unit) * 2);
+  font-size: 1rem;
+  border: 1px solid var(--gray-light);
+  background-color: var(--white);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rent-dropdown:hover {
+  border-color: var(--gray-dark);
+}
+
+.rent-dropdown:focus {
+  outline: none;
+  border-color: var(--text-primary);
+  box-shadow: inset 0 0 0 3px rgba(193, 18, 31, 0.1);
+}
+
+/* Chart Section */
+.chart-section {
+  margin-bottom: calc(var(--spacing-unit) * 10);
+}
+
+.chart-wrapper {
+  background: var(--white);
+  border: 1px solid var(--gray-light);
+  padding: calc(var(--spacing-unit) * 4);
+  margin-bottom: calc(var(--spacing-unit) * 4);
+}
+
+.income-bar {
+  display: flex;
+  height: 60px;
+  background: var(--gray-light);
+  border-radius: 0;
+  overflow: hidden;
+  margin-bottom: calc(var(--spacing-unit) * 2);
+  box-shadow: none;
+}
+
+.income-bar-rent {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: calc(var(--spacing-unit) * 2);
+  color: var(--white);
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: width 0.3s ease;
+}
+
+.income-bar-rent.burden-safe {
+  background-color: var(--accent-green);
+}
+
+.income-bar-rent.burden-high {
+  background-color: var(--accent-red);
+}
+
+.income-bar-remaining {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-left: calc(var(--spacing-unit) * 2);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  background-color: var(--white);
+  border-left: 1px solid var(--gray-light);
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--gray-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: calc(var(--spacing-unit) * 2);
+}
+
+/* Annotation */
+.annotation {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--accent-red);
+  text-align: center;
+  padding: calc(var(--spacing-unit) * 3);
+  background-color: var(--white);
+  border-left: 4px solid var(--accent-red);
+  margin-bottom: calc(var(--spacing-unit) * 8);
+}
+
+.annotation.safe {
+  color: var(--accent-green);
+  border-left-color: var(--accent-green);
+}
+
+/* Story Text */
+.story-text {
+  background-color: var(--white);
+  padding: calc(var(--spacing-unit) * 4);
+  border: 1px solid var(--gray-light);
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+
+.story-text p {
+  margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+.story-text p:last-child {
+  margin-bottom: 0;
+}
+
+/* Claim Banner */
+.claim-banner {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: calc(var(--spacing-unit) * 6);
+  color: var(--text-primary);
+  border-left: 4px solid var(--accent-red);
+  padding-left: calc(var(--spacing-unit) * 3);
+}
+
+/* Data Display */
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  padding: calc(var(--spacing-unit) * 1.5) 0;
+  border-bottom: 1px solid var(--gray-light);
+}
+
+.data-row:last-child {
+  border-bottom: none;
+}
+
+.data-label {
+  font-size: 0.875rem;
+  color: var(--gray-dark);
+}
+
+.data-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  .container {
+    padding: calc(var(--spacing-unit) * 6) calc(var(--spacing-unit) * 2);
+  }
+
+  .income-bar {
+    height: 50px;
+  }
+
+  .income-bar-rent,
+  .income-bar-remaining {
+    font-size: 0.75rem;
+  }
+
+  .annotation {
+    font-size: 1rem;
+  }
+
+  .claim-banner {
+    font-size: 1.1rem;
+  }
+}
