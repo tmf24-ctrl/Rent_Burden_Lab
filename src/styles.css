@@ -1,0 +1,95 @@
+/* global reset and base */
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  background-color: #f4f4f2;
+  color: #000;
+  line-height: 1.5;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+/* layout */
+.calculator {
+  max-width: 600px;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.headline {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.slider-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.slider-group label {
+  font-weight: 600;
+}
+
+.slider-group input[type='range'] {
+  flex: 1;
+}
+
+.slider-value {
+  min-width: 3rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bar-container {
+  display: flex;
+  height: 2rem;
+  background: #ddd;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.rent-bar {
+  height: 100%;
+}
+
+.rest-bar {
+  height: 100%;
+  background: #aaa;
+}
+
+.bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+.annotation {
+  font-weight: 600;
+}
+
+.story {
+  font-size: 0.95rem;
+  margin-top: 1rem;
+  line-height: 1.4;
+}
+
+/* accessibility focus */
+input[type='range']:focus {
+  outline: 2px solid #000;
+}
