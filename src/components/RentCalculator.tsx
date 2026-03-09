@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AVERAGE_MONTHLY_RENT,
   WEEKS_PER_MONTH,
@@ -8,6 +8,7 @@ import {
   SLIDER_DEFAULT,
   SLIDER_STEP,
 } from '../constants';
+import { crawlAffordableLiving, type LivingCrawlerResult } from '../services/livingCrawler';
 
 // State minimum wage data (2026 estimates)
 const STATE_MINIMUM_WAGES = [
@@ -78,6 +79,12 @@ export function RentCalculator() {
   const [hoursWorked, setHoursWorked] = useState(SLIDER_DEFAULT);
   const [monthlyRent, setMonthlyRent] = useState(AVERAGE_MONTHLY_RENT);
   const [selectedState, setSelectedState] = useState('FED');
+  const [crawlerResult, setCrawlerResult] = useState<LivingCrawlerResult | null>(null);
+  const [crawlerLoading, setCrawlerLoading] = useState(false);
+  const [crawlerMode, setCrawlerMode] = useState<'serverless' | 'local' | null>(null);
+  const [crawlerError, setCrawlerError] = useState<string | null>(null);
+  const [aiRecommendations, setAiRecommendations] = useState<string[] | null>(null);
+  const [hasRunCrawler, setHasRunCrawler] = useState(false);
 
   // Get the minimum wage for selected state
   const currentState = STATE_MINIMUM_WAGES.find(s => s.code === selectedState) || STATE_MINIMUM_WAGES[0];
@@ -104,155 +111,337 @@ export function RentCalculator() {
   const rentWidth = monthlyIncome > 0 ? (monthlyRent / monthlyIncome) * 100 : 0;
   const remainingWidth = 100 - rentWidth;
 
-  return (
-    <div className="container">
-      {/* Title */}
-      <header>
-        <h1>Student Reality Lab</h1>
-        <h2 style={{ marginBottom: '0.5rem', marginTop: '-3rem', fontSize: '1.1rem', fontWeight: 400 }}>
-          Rent Burden Prototype
-        </h2>
+  const runLivingCrawler = async () => {
+    setCrawlerLoading(true);
+    setCrawlerError(null);
+    setHasRunCrawler(true);
 
-        {/* Claim */}
-        <p className="claim-banner">
-          In most U.S. cities, a student working 20 hours per week at minimum wage cannot afford average rent
-          without exceeding the 30% rent burden threshold.
+    const localFallback = () => {
+      const local = crawlAffordableLiving({
+        stateCode: selectedState,
+        hourlyWage: minimumWage,
+        hoursWorkedPerWeek: hoursWorked,
+        weeksPerMonth: WEEKS_PER_MONTH,
+        selectedRent: monthlyRent,
+        rentBurdenThreshold: RENT_BURDEN_THRESHOLD,
+      });
+      setCrawlerResult(local);
+      setCrawlerMode('local');
+      setAiRecommendations(null);
+    };
+
+    try {
+      const params = new URLSearchParams({
+        stateCode: selectedState,
+        hourlyWage: String(minimumWage),
+        hoursWorkedPerWeek: String(hoursWorked),
+        weeksPerMonth: String(WEEKS_PER_MONTH),
+        selectedRent: String(monthlyRent),
+        rentBurdenThreshold: String(RENT_BURDEN_THRESHOLD),
+      });
+
+      // Use relative path - Vite proxy handles routing to backend in dev
+      const response = await fetch(`/api/crawl?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(`Serverless crawler failed with ${response.status}`);
+      }
+
+      const payload = (await response.json()) as {
+        mode?: 'serverless';
+        data?: LivingCrawlerResult;
+        aiRecommendations?: string[] | null;
+      };
+
+      if (payload.data) {
+        setCrawlerResult(payload.data);
+        setCrawlerMode('serverless');
+        setAiRecommendations(payload.aiRecommendations ?? null);
+      } else {
+        localFallback();
+      }
+    } catch {
+      localFallback();
+      setCrawlerError('Serverless endpoint unavailable locally; showing local generated crawler results.');
+    } finally {
+      setCrawlerLoading(false);
+    }
+  };
+
+  const budget = crawlerResult?.budget;
+
+  useEffect(() => {
+    if (!hasRunCrawler || crawlerLoading) {
+      return;
+    }
+
+    void runLivingCrawler();
+  }, [selectedState, monthlyRent, hoursWorked]);
+
+  return (
+    <main className="container">
+      <header className="hero">
+        <p className="eyebrow">Student Reality Lab</p>
+        <h1>Rent Burden Prototype</h1>
+        <p className="hero-claim">
+          Most students working part-time at minimum wage still cross the 30% rent-burden line in 2026.
         </p>
       </header>
 
-      {/* Slider Section */}
-      <section className="slider-section">
-        <label className="slider-label" htmlFor="hours-slider">
-          Hours Worked Per Week
-        </label>
-        <div className="slider-container">
-          <input
-            id="hours-slider"
-            type="range"
-            min={SLIDER_MIN}
-            max={SLIDER_MAX}
-            value={hoursWorked}
-            step={SLIDER_STEP}
-            onChange={(e) => setHoursWorked(Number(e.target.value))}
-            aria-label={`Hours worked per week: ${hoursWorked}`}
-          />
-          <div className="slider-value">
-            {hoursWorked}
-            <span className="slider-value-unit"> hours/week</span>
-          </div>
-        </div>
-      </section>
+      <section className="layout-top">
+        <article className="panel panel-controls">
+          <h2>Set Your Scenario</h2>
 
-      {/* Rent Dropdown Section */}
-      <section className="slider-section">
-        <label className="slider-label" htmlFor="rent-dropdown">
-          Select Rent Amount
-        </label>
-        <select
-          id="rent-dropdown"
-          value={monthlyRent}
-          onChange={(e) => setMonthlyRent(Number(e.target.value))}
-          className="rent-dropdown"
-          aria-label="Select monthly rent amount"
-        >
-          {RENT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </section>
-
-      {/* State Dropdown Section */}
-      <section className="slider-section">
-        <label className="slider-label" htmlFor="state-dropdown">
-          Select Your State (Minimum Wage)
-        </label>
-        <select
-          id="state-dropdown"
-          value={selectedState}
-          onChange={(e) => setSelectedState(e.target.value)}
-          className="rent-dropdown"
-          aria-label="Select state for minimum wage"
-        >
-          {STATE_MINIMUM_WAGES.map((state) => (
-            <option key={state.code} value={state.code}>
-              {state.state} (${state.wage.toFixed(2)}/hr)
-            </option>
-          ))}
-        </select>
-      </section>
-
-      {/* Quick Stats */}
-      <section style={{ marginBottom: 'calc(var(--spacing-unit) * 8)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'calc(var(--spacing-unit) * 4)' }}>
-          <div className="data-row" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-            <span className="data-label">Min Wage ({currentState.code})</span>
-            <span className="data-value">${minimumWage.toFixed(2)}/hr</span>
+          <div className="control-group">
+            <label className="slider-label" htmlFor="hours-slider">
+              Hours Worked Per Week
+            </label>
+            <div className="slider-container">
+              <input
+                id="hours-slider"
+                type="range"
+                min={SLIDER_MIN}
+                max={SLIDER_MAX}
+                value={hoursWorked}
+                step={SLIDER_STEP}
+                onChange={(e) => setHoursWorked(Number(e.target.value))}
+                aria-label={`Hours worked per week: ${hoursWorked}`}
+              />
+              <div className="slider-value">
+                {hoursWorked}
+                <span className="slider-value-unit"> hours/week</span>
+              </div>
+            </div>
           </div>
-          <div className="data-row" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-            <span className="data-label">Monthly Income</span>
-            <span className="data-value">{formatCurrency(monthlyIncome)}</span>
-          </div>
-          <div className="data-row" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-            <span className="data-label">Monthly Rent</span>
-            <span className="data-value">{formatCurrency(monthlyRent)}</span>
-          </div>
-        </div>
-      </section>
 
-      {/* Chart Section */}
-      <section className="chart-section">
-        <div className="chart-wrapper">
-          {/* Income Bar Chart */}
-          <div className="income-bar">
-            <div
-              className={`income-bar-rent ${isSafe ? 'burden-safe' : 'burden-high'}`}
-              style={{ width: `${Math.max(rentWidth, 5)}%` }}
-              role="img"
-              aria-label={`Rent portion: ${rentPercentage}% of income`}
+          <div className="control-group">
+            <label className="slider-label" htmlFor="rent-dropdown">
+              Target Rent Context
+            </label>
+            <select
+              id="rent-dropdown"
+              value={monthlyRent}
+              onChange={(e) => setMonthlyRent(Number(e.target.value))}
+              className="rent-dropdown"
+              aria-label="Select monthly rent amount"
             >
-              {rentWidth > 15 && `${rentPercentage}%`}
+              {RENT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="control-group">
+            <label className="slider-label" htmlFor="state-dropdown">
+              State You Live In
+            </label>
+            <select
+              id="state-dropdown"
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              className="rent-dropdown"
+              aria-label="Select state for minimum wage"
+            >
+              {STATE_MINIMUM_WAGES.map((state) => (
+                <option key={state.code} value={state.code}>
+                  {state.state} (${state.wage.toFixed(2)}/hr)
+                </option>
+              ))}
+            </select>
+          </div>
+        </article>
+
+        <article className="panel panel-insight">
+          <h2>Live Snapshot</h2>
+          <div className="chips">
+            <div className="chip">
+              <span className="chip-label">Min Wage ({currentState.code})</span>
+              <span className="chip-value">${minimumWage.toFixed(2)}/hr</span>
             </div>
-            <div className="income-bar-remaining">
-              {remainingWidth > 15 && `Remaining: ${formatCurrency(Math.max(remainingIncome, 0))}`}
+            <div className="chip">
+              <span className="chip-label">Monthly Income</span>
+              <span className="chip-value">{formatCurrency(monthlyIncome)}</span>
+            </div>
+            <div className="chip">
+              <span className="chip-label">Monthly Rent</span>
+              <span className="chip-value">{formatCurrency(monthlyRent)}</span>
             </div>
           </div>
 
-          {/* Chart Labels */}
-          <div className="chart-labels">
-            <span>$0</span>
-            <span>Monthly Income: {formatCurrency(monthlyIncome)}</span>
+          <div className="chart-wrapper">
+            <div className="income-bar">
+              <div
+                className={`income-bar-rent ${isSafe ? 'burden-safe' : 'burden-high'}`}
+                style={{ width: `${Math.max(rentWidth, 5)}%` }}
+                role="img"
+                aria-label={`Rent portion: ${rentPercentage}% of income`}
+              >
+                {rentWidth > 15 && `${rentPercentage}%`}
+              </div>
+              <div className="income-bar-remaining">
+                {remainingWidth > 15 && `Remaining: ${formatCurrency(Math.max(remainingIncome, 0))}`}
+              </div>
+            </div>
+
+            <div className="chart-labels">
+              <span>$0</span>
+              <span>Monthly Income: {formatCurrency(monthlyIncome)}</span>
+            </div>
           </div>
-        </div>
 
-        {/* Annotation */}
-        <div className={`annotation ${isSafe ? 'safe' : ''}`}>
-          At {hoursWorked} hours/week, rent consumes <strong>{rentPercentage}%</strong> of monthly income.
-          {isSafe ? ' ✓ Within safe threshold.' : ' ✗ Exceeds 30% threshold.'}
-        </div>
+          <p className={`annotation ${isSafe ? 'safe' : ''}`}>
+            At {hoursWorked} hours/week, rent consumes <strong>{rentPercentage}%</strong> of monthly income.
+            {isSafe ? ' Within the safer range.' : ' This is rent-burdened.'}
+          </p>
+        </article>
       </section>
 
-      {/* Story Text */}
-      <section className="story-text">
-        <h2>What You're Seeing</h2>
-        <p>
-          The 30% rent burden threshold comes from housing economists and financial advisors who recommend that
-          rent should not exceed 30% of gross monthly income. This keeps housing affordable and leaves income for
-          food, transportation, utilities, and education expenses.
-        </p>
-        <p>
-          Minimum wage varies dramatically across states. In 2026, it ranges from $10.50 in states like Texas, Wyoming,
-          and North Carolina up to $18.50 in California and higher in some markets. At the federal baseline of $15/hour,
-          a student working 20 hours per week earns approximately $1,298 per month. With average rent at $1,800, that
-          student faces a 138% rent burden—meaning rent alone exceeds their entire income.
-        </p>
-        <p>
-          Use the state dropdown to see how geography impacts affordability. Try California versus Kentucky. Select
-          different neighborhoods via the rent dropdown. Adjust hours worked to explore scenarios. The visualization
-          exposes a fundamental mismatch in the 2026 economy between student wages and housing costs across America.
-        </p>
+      {/* Removed 'What to Notice' section for a cleaner, less robotic UI */}
+
+      <section className="crawler-section panel">
+        <div className="crawler-head">
+          <h2>Affordable Living Crawler</h2>
+          <button className="crawler-button" type="button" onClick={runLivingCrawler} disabled={crawlerLoading}>
+            {crawlerLoading ? 'Refreshing Suggestions...' : 'Generate Living Plan'}
+          </button>
+        </div>
+
+        {crawlerMode ? (
+          <p className="crawler-mode">Source mode: {crawlerMode === 'serverless' ? 'Serverless API' : 'Local Fallback'}</p>
+        ) : null}
+        {crawlerError ? <p className="crawler-error">{crawlerError}</p> : null}
+
+        {crawlerResult ? (
+          <div className="crawler-results">
+            <div className="result-card">
+              <h3>Source Coverage</h3>
+              <div className="platform-badges">
+                <span className="platform-badge">Craigslist</span>
+                <span className="platform-badge">Apartments.com</span>
+                <span className="platform-badge">Zillow</span>
+                <span className="platform-badge">Food Search Web</span>
+              </div>
+            </div>
+
+            <div className="result-card">
+              <h3>Housing Opportunities</h3>
+              <p className="widget-subtitle">Generated leads adjusted to your state and affordability target.</p>
+              <div className="widget-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '1rem', paddingBottom: 8 }}>
+                {crawlerResult.housingListings.map((listing) => (
+                  <div key={`${listing.source}-${listing.title}`} className="widget-card" style={{ minWidth: 260, background: '#181a1b', borderRadius: 12, boxShadow: '0 2px 12px #0003', padding: 16, flex: '0 0 auto', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <p className="widget-title" style={{ fontWeight: 600, fontSize: 18, marginBottom: 4 }}>
+                        <a href={listing.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                          {listing.title}
+                        </a>
+                      </p>
+                      <p className="widget-meta" style={{ fontSize: 14, color: '#aaa', marginBottom: 8 }}>
+                        {listing.source} • {listing.location}
+                      </p>
+                      <p style={{ fontSize: 15, marginBottom: 8 }}>
+                        <strong>Monthly Cost:</strong> {formatCurrency(listing.monthlyCost)}
+                      </p>
+                      <p style={{ fontSize: 15, marginBottom: 8 }}>
+                        <strong>Status:</strong> <span className={listing.affordable ? 'status-good' : 'status-bad'}>{listing.affordable ? 'Affordable' : 'Over Budget'}</span>
+                      </p>
+                      {listing.description && (
+                        <p style={{ fontSize: 14, color: '#ccc', marginBottom: 8 }}>
+                          <strong>Description:</strong> {listing.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="result-card">
+              <h3>Affordable Food Ideas</h3>
+              <p className="widget-subtitle">Low-cost options estimated for your selected state context.</p>
+              <div className="widget-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '1rem', paddingBottom: 8 }}>
+                {crawlerResult.foodDeals.map((deal) => (
+                  <div key={deal.title} className="widget-card" style={{ minWidth: 260, background: '#181a1b', borderRadius: 12, boxShadow: '0 2px 12px #0003', padding: 16, flex: '0 0 auto', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <p className="widget-title" style={{ fontWeight: 600, fontSize: 18, marginBottom: 4 }}>
+                        <a href={deal.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                          {deal.title}
+                        </a>
+                      </p>
+                      <p className="widget-meta" style={{ fontSize: 14, color: '#aaa', marginBottom: 8 }}>{deal.source}</p>
+                      <p style={{ fontSize: 15, marginBottom: 8 }}>
+                        <strong>Estimated Monthly Cost:</strong> {formatCurrency(deal.estimatedMonthlyCost)}
+                      </p>
+                      {deal.description && (
+                        <p style={{ fontSize: 14, color: '#ccc', marginBottom: 8 }}>
+                          <strong>Description:</strong> {deal.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {budget ? (
+              <div className="result-card">
+                <h3>Monthly Budget Draft</h3>
+                <div className="budget-grid">
+                  <div className="data-row">
+                    <span className="data-label">Income</span>
+                    <span className="data-value">{formatCurrency(budget.income)}</span>
+                  </div>
+                  <div className="data-row">
+                    <span className="data-label">Housing</span>
+                    <span className="data-value">{formatCurrency(budget.housing)}</span>
+                  </div>
+                  <div className="data-row">
+                    <span className="data-label">Food</span>
+                    <span className="data-value">{formatCurrency(budget.food)}</span>
+                  </div>
+                  <div className="data-row">
+                    <span className="data-label">Transport</span>
+                    <span className="data-value">{formatCurrency(budget.transport)}</span>
+                  </div>
+                  <div className="data-row">
+                    <span className="data-label">Utilities</span>
+                    <span className="data-value">{formatCurrency(budget.utilities)}</span>
+                  </div>
+                  <div className="data-row">
+                    <span className="data-label">Phone & Internet</span>
+                    <span className="data-value">{formatCurrency(budget.phoneInternet)} <span style={{ fontSize: 12, color: '#aaa' }}>(live estimate)</span></span>
+                  </div>
+                  <div className="data-row">
+                    <span className="data-label">Savings</span>
+                    <span className="data-value">{formatCurrency(budget.savings)}</span>
+                  </div>
+                  <div className="data-row">
+                    <span className="data-label">Leftover</span>
+                    <span className={`data-value ${budget.leftover >= 0 ? 'status-good' : 'status-bad'}`}>
+                      {formatCurrency(budget.leftover)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {aiRecommendations && aiRecommendations.length > 0 ? (
+              <div className="result-card">
+                <h3>Claude Recommendations</h3>
+                <ul className="widget-list">
+                  {aiRecommendations.map((tip) => (
+                    <li key={tip} className="widget-item">
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="empty-state">Press “Generate Living Plan” to populate housing, food, and budget widgets.</div>
+        )}
       </section>
-    </div>
+    </main>
   );
 }
