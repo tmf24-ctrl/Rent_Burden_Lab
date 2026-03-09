@@ -3,7 +3,7 @@
 > **IS219 · Track B: Rent Burden / Moving Out**
 > An interactive data story that answers a real, verifiable question: can a student working part-time at state minimum wage afford rent in 2026 without becoming rent-burdened?
 
-**Live Demo:** `[your-vercel-url-here]`
+**Live Demo:** `(https://is219-41q7s1h24-faccendataryn-5845s-projects.vercel.app/)`
 **Repo:** `https://github.com/tmf24-ctrl/Rent_Burden_Lab`
 
 ---
