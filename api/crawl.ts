@@ -17,12 +17,12 @@ async function scrapeWithFirecrawl(url: string, options: { timeout?: number; ste
       body: JSON.stringify({
         url,
         formats: ['markdown', 'links'],
-        waitFor: options.timeout || 5000,
-        timeout: 30000,
-        // Request mobile user agent for better compatibility
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
-        }
+        waitFor: options.timeout || 10000,
+        timeout: 60000,
+        // Enable JavaScript rendering
+        actions: [
+          { type: 'wait', milliseconds: options.timeout || 10000 }
+        ]
       }),
     });
 
@@ -141,19 +141,20 @@ function parseHousingFromMarkdown(markdown: string, source: string, maxRent: num
   // Collect listing URLs from external links array
   const listingUrls: string[] = [];
   if (externalLinks && externalLinks.length > 0) {
-    console.log(`${source}: Links received:`, externalLinks.slice(0, 10));
     for (const link of externalLinks) {
       // More lenient patterns for listing URLs
       const isListingUrl = (
         (source === 'Apartments.com' && link.includes('apartments.com/') && !link.endsWith('/new-york/') && !link.includes('?') && link.split('/').length > 4) ||
-        (source === 'Zillow' && link.includes('zillow.com') && (link.match(/\/homedetails\//i) || link.match(/\/b\//i))) ||
+        (source === 'Zillow' && link.includes('zillow.com/apartments/') && !link.includes('#')) ||
         (source === 'Craigslist' && link.includes('craigslist.org') && link.match(/\/\d+\.html/))
       );
       if (isListingUrl) {
         listingUrls.push(link);
       }
     }
-    console.log(`${source}: Found ${listingUrls.length} listing URLs from links`);
+    if (listingUrls.length > 0) {
+      console.log(`${source}: Found ${listingUrls.length} listing URLs`);
+    }
   }
   
   // First, extract all URLs from the markdown that look like listing URLs
@@ -169,7 +170,7 @@ function parseHousingFromMarkdown(markdown: string, source: string, maxRent: num
     // Check if this is a listing URL (not navigation, filters, etc.)
     const isListingUrl = (
       (source === 'Apartments.com' && url.includes('apartments.com/') && !url.endsWith('/new-york/') && !url.includes('?') && url.split('/').length > 4) ||
-      (source === 'Zillow' && url.includes('zillow.com') && (url.match(/\/homedetails\//i) || url.match(/\/b\//i))) ||
+      (source === 'Zillow' && url.includes('zillow.com/apartments/') && !url.includes('#')) ||
       (source === 'Craigslist' && url.includes('craigslist.org') && url.match(/\/\d+\.html/))
     );
     
@@ -313,16 +314,14 @@ async function fetchCraigslistListings(searchTerm: string, maxRent: number, stat
 // Fetch Apartments.com listings using Firecrawl
 async function fetchApartmentsListings(searchTerm: string, maxRent: number): Promise<any[]> {
   const stateSlug = searchTerm.toLowerCase().replace(/\s+/g, '-');
-  const url = `https://www.apartments.com/${stateSlug}/`;
+  // Use search endpoint with price filter for better results
+  const url = `https://www.apartments.com/${stateSlug}/?bb=&rent=${Math.min(maxRent, 2000)}`;
   
-  const result = await scrapeWithFirecrawl(url);
+  const result = await scrapeWithFirecrawl(url, { timeout: 15000 });
   if (!result?.markdown) {
     console.log('Apartments.com: No content returned');
     return [];
   }
-  
-  // Debug: log first 500 chars of markdown
-  console.log('Apartments.com markdown sample:', result.markdown.substring(0, 500));
   
   const listings = parseHousingFromMarkdown(result.markdown, 'Apartments.com', maxRent, searchTerm, url, result.links);
   console.log('Apartments.com: Found', listings.length, 'listings');
