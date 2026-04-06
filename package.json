@@ -7,9 +7,10 @@
     "node": "22.x"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run dev:web\" \"npm run server\"",
+    "dev:web": "vite",
     "server": "tsx server.ts",
-    "dev:full": "concurrently \"npm run dev\" \"npm run server\"",
+    "dev:full": "concurrently \"npm run dev:web\" \"npm run server\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"

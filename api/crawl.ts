@@ -90,16 +90,28 @@ function parseZillowListings(
 ): any[] {
   const listings: any[] = [];
 
-  // Collect Zillow listing URLs from external links
-  const listingUrls: string[] = [];
+  // Collect Zillow listing URLs from external links and extract locations
+  const listingInfo: { url: string; city: string }[] = [];
   if (externalLinks && externalLinks.length > 0) {
     for (const link of externalLinks) {
       if (link.includes('zillow.com/apartments/') && !link.includes('#')) {
-        listingUrls.push(link);
+        // Extract city from URL like: /apartments/north-bergen-nj/
+        const cityMatch = link.match(/\/apartments\/([^/]+)/);
+        if (cityMatch) {
+          const citySlug = cityMatch[1];
+          // Format: "north-bergen-nj" -> "North Bergen, NJ"
+          const parts = citySlug.split('-');
+          const stateCode = parts.pop()?.toUpperCase() || '';
+          const cityName = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          listingInfo.push({
+            url: link,
+            city: `${cityName}, ${stateCode}`,
+          });
+        }
       }
     }
-    if (listingUrls.length > 0) {
-      console.log(`Zillow: Found ${listingUrls.length} listing URLs`);
+    if (listingInfo.length > 0) {
+      console.log(`Zillow: Found ${listingInfo.length} listing URLs`);
     }
   }
 
@@ -118,12 +130,10 @@ function parseZillowListings(
     if (price < 400 || price > maxRent * 2 || seenPrices.has(price)) continue;
     seenPrices.add(price);
 
-    // Get a listing URL
-    let listingUrl = '';
-    if (listingUrls.length > 0) {
-      listingUrl = listingUrls[listings.length % listingUrls.length];
-    }
-    if (!listingUrl) listingUrl = baseUrl;
+    // Get listing URL and city from extracted info
+    const info = listingInfo[listings.length % Math.max(listingInfo.length, 1)];
+    const listingUrl = info?.url || baseUrl;
+    const cityLocation = info?.city || searchTerm;
 
     // Extract bed/bath info
     const bedMatch = match.match(/(\d+)\s*(?:bed(?:room)?s?|br|bd)/i);
@@ -144,11 +154,11 @@ function parseZillowListings(
       title,
       price,
       source: 'Zillow',
-      location: searchTerm,
+      location: cityLocation,
       url: listingUrl,
       beds,
       baths,
-      description: `$${price.toLocaleString()}/month ${beds ? beds + ' bed' : ''} ${baths ? baths + ' bath' : ''} rental in ${searchTerm}`.trim(),
+      description: `$${price.toLocaleString()}/month ${beds ? beds + ' bed' : ''} ${baths ? baths + ' bath' : ''} rental in ${cityLocation}`.trim(),
     });
   }
 

@@ -1,6 +1,6 @@
 export interface HousingListing {
   title: string;
-  source: 'Craigslist' | 'Apartments.com' | 'Zillow' | 'Web';
+  source: 'Zillow' | 'Web';
   monthlyCost: number;
   location: string;
   url: string;
@@ -34,8 +34,6 @@ export interface LivingCrawlerResult {
   foodDeals: FoodDeal[];
   budget: BudgetBreakdown;
   searchLinks: {
-    craigslist: string;
-    apartments: string;
     zillow: string;
     foodWeb: string;
   };
@@ -105,24 +103,14 @@ function getHousingPressure(stateCode: string): number {
   return HOUSING_PRESSURE_BY_STATE[stateCode] ?? HOUSING_PRESSURE_BY_STATE.default;
 }
 
-function buildCraigslistUrl(city: string, maxRent: number): string {
-  const encodedCity = encodeURIComponent(city);
-  return `https://www.craigslist.org/search/apa?query=${encodedCity}&max_price=${Math.round(maxRent)}`;
-}
-
 function buildFoodWebUrl(city: string): string {
   const query = encodeURIComponent(`${city} affordable groceries student budget meal prep`);
   return `https://duckduckgo.com/?q=${query}`;
 }
 
-function buildApartmentsUrl(city: string, maxRent: number): string {
-  const cityPath = encodeURIComponent(city.toLowerCase().replace(/\s+/g, '-'));
-  return `https://www.apartments.com/${cityPath}/?bb=&max-price=${Math.round(maxRent)}`;
-}
-
-function buildZillowUrl(city: string, maxRent: number): string {
-  const encoded = encodeURIComponent(city);
-  return `https://www.zillow.com/homes/for_rent/${encoded}_rb/?searchQueryState=%7B%22filterState%22%3A%7B%22mp%22%3A%7B%22max%22%3A${Math.round(maxRent)}%7D%7D%7D`;
+function buildZillowUrl(stateCode: string, stateName: string): string {
+  const stateSlug = stateName.toLowerCase().replace(/\s+/g, '-');
+  return `https://www.zillow.com/${stateSlug}-${stateCode.toLowerCase()}/rentals/`;
 }
 
 export function crawlAffordableLiving(params: {
@@ -146,64 +134,39 @@ export function crawlAffordableLiving(params: {
   const monthlyIncome = hourlyWage * hoursWorkedPerWeek * weeksPerMonth;
   const targetMaxHousing = monthlyIncome * rentBurdenThreshold;
 
-  const craigslistUrl = buildCraigslistUrl(searchTerm, targetMaxHousing);
-  const apartmentsUrl = buildApartmentsUrl(searchTerm, targetMaxHousing);
-  const zillowUrl = buildZillowUrl(searchTerm, targetMaxHousing);
+  const zillowUrl = buildZillowUrl(stateCode, searchTerm);
   const foodWebUrl = buildFoodWebUrl(searchTerm);
   const housingPressure = getHousingPressure(stateCode);
 
-  const roomRent = Math.round(Math.max(targetMaxHousing * 0.8, selectedRent * 0.42 * housingPressure));
-  const sharedApartmentRent = Math.round(
-    Math.max(targetMaxHousing * 0.92, selectedRent * 0.56 * housingPressure),
-  );
-  const studioRent = Math.round(
-    Math.max(targetMaxHousing * 1.05, selectedRent * 0.72 * housingPressure),
-  );
-  const apartmentsComRent = Math.round(
-    Math.max(targetMaxHousing * 1.02, selectedRent * 0.67 * housingPressure),
-  );
-  const zillowRent = Math.round(Math.max(targetMaxHousing * 1.08, selectedRent * 0.7 * housingPressure));
+  // Generate Zillow-only estimated listings
+  const studioRent = Math.round(selectedRent * 0.75 * housingPressure);
+  const oneBedRent = Math.round(selectedRent * 0.9 * housingPressure);
+  const twoBedRent = Math.round(selectedRent * 1.1 * housingPressure);
 
   const generatedHousing: HousingListing[] = [
     {
-      title: `Shared apartment in ${searchTerm}`,
-      source: 'Craigslist' as const,
-      monthlyCost: sharedApartmentRent,
-      location: searchTerm,
-      url: craigslistUrl,
-      affordable: sharedApartmentRent <= targetMaxHousing,
-    },
-    {
-      title: `Room in shared house in ${searchTerm}`,
-      source: 'Craigslist' as const,
-      monthlyCost: roomRent,
-      location: searchTerm,
-      url: craigslistUrl,
-      affordable: roomRent <= targetMaxHousing,
-    },
-    {
-      title: `Studio / sublet option in ${searchTerm}`,
-      source: 'Web' as const,
+      title: `Studio apartment in ${searchTerm}`,
+      source: 'Zillow' as const,
       monthlyCost: studioRent,
       location: searchTerm,
-      url: craigslistUrl,
+      url: zillowUrl,
       affordable: studioRent <= targetMaxHousing,
     },
     {
-      title: `Apartment listing match in ${searchTerm}`,
-      source: 'Apartments.com' as const,
-      monthlyCost: apartmentsComRent,
-      location: searchTerm,
-      url: apartmentsUrl,
-      affordable: apartmentsComRent <= targetMaxHousing,
-    },
-    {
-      title: `Rental listing match in ${searchTerm}`,
+      title: `1-bedroom rental in ${searchTerm}`,
       source: 'Zillow' as const,
-      monthlyCost: zillowRent,
+      monthlyCost: oneBedRent,
       location: searchTerm,
       url: zillowUrl,
-      affordable: zillowRent <= targetMaxHousing,
+      affordable: oneBedRent <= targetMaxHousing,
+    },
+    {
+      title: `2-bedroom rental in ${searchTerm}`,
+      source: 'Zillow' as const,
+      monthlyCost: twoBedRent,
+      location: searchTerm,
+      url: zillowUrl,
+      affordable: twoBedRent <= targetMaxHousing,
     },
   ].sort((a, b) => a.monthlyCost - b.monthlyCost);
 
@@ -252,8 +215,6 @@ export function crawlAffordableLiving(params: {
       leftover: Math.round(monthlyIncome - totalPlanned),
     },
     searchLinks: {
-      craigslist: craigslistUrl,
-      apartments: apartmentsUrl,
       zillow: zillowUrl,
       foodWeb: foodWebUrl,
     },

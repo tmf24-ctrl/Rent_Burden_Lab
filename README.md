@@ -183,11 +183,10 @@ Returns three grocery strategies (Aldi, Walmart Grocery Pickup, Costco bulk) wit
 Create `.env.local` in the project root (do not commit):
 
 ```
-CLAUDE_API_KEY=your_anthropic_api_key
-SCRAPINGBEE_API_KEY=your_scrapingbee_api_key
+FIRECRAWL_API_KEY=your_firecrawl_api_key
 ```
 
-The app runs without either key. Missing keys disable live scraping (falls back to local crawler) and omit Claude recommendations. Startup logs confirm `YES`/`NO` for each key.
+The app runs without this key, but live scraping will use generated fallback estimates. Startup logs confirm whether the Firecrawl key is loaded.
 
 ---
 
@@ -197,11 +196,8 @@ The app runs without either key. Missing keys disable live scraping (falls back 
 # Install dependencies
 npm install
 
-# Terminal 1 — Vite frontend (port 5173)
+# Runs both Vite frontend (5173) and API server (3001)
 npm run dev
-
-# Terminal 2 — Express API server (port 3001)
-npx tsx server.ts
 ```
 
 Vite proxies `/api/*` to `localhost:3001`. If the API server is not running, the UI falls back to the local crawler automatically.
