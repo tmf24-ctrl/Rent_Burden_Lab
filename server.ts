@@ -14,6 +14,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Root endpoint - health check
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Rent Burden API Server',
+    endpoints: {
+      crawl: '/api/crawl?stateCode=NY&hourlyWage=15&hoursWorkedPerWeek=20&selectedRent=1800'
+    }
+  });
+});
+
 // Dynamically import the API handler
 const crawlModule = await import('./api/crawl.ts');
 const crawlHandler = crawlModule.default;
@@ -37,6 +48,5 @@ app.get('/api/crawl', async (req, res) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`API server running at http://localhost:${PORT}`);
-  console.log(`Claude API key loaded: ${process.env.CLAUDE_API_KEY ? 'YES' : 'NO'}`);
-  console.log(`ScrapingBee API key loaded: ${process.env.SCRAPINGBEE_API_KEY ? 'YES' : 'NO'}`);
+  console.log(`Firecrawl API key loaded: ${process.env.FIRECRAWL_API_KEY ? 'YES' : 'NO'}`);
 });
